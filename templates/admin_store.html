@@ -1,0 +1,277 @@
+{%extends "admin.html" %}
+ <!-- 导航标记 -->
+{% block store %}active{% endblock %}
+<!-- 内容区 -->
+{% block mainbody %}
+
+{% verbatim %}
+<div id="appownerstore" class="container">
+  <div class="top-panel">
+    <div class="panel-header">
+      <div class="panel-title">仓库管理</div>
+    </div>
+  </div>
+  <div class="table-wrapper">
+    <el-table
+      :data="list"
+      style="width: 100%">
+      <el-table-column
+        prop="id"
+        label="仓库编号"
+        width="100"
+        align="center">
+      </el-table-column>
+      <el-table-column
+        prop="name"
+        label="仓库名称"
+        width="150"
+        align="center">
+      </el-table-column>
+      <el-table-column
+        prop="type"
+        label="仓库类型"
+        width="150"
+        :formatter="onFormatterStoreType"
+        align="center">
+      </el-table-column>
+      <el-table-column
+        prop="capacity"
+        label="容量/大小">
+      </el-table-column>
+      <el-table-column
+        prop="exist_amount"
+        label="已使用"
+        width="140"
+        align="center">
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="80"
+        align="right">
+        <template slot-scope="{ row }">
+          <el-button v-if="row.exist_amount > 0" type="text" @click="onShowStoreDetail(row)">查看</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+  </div>
+  <div class="filter-container">
+    <div class="filter-item">
+      <el-button @click="showAddStoreForm = true">添加新仓库</el-button>
+    </div>
+  </div>
+
+  <!-- 仓库详情 -->
+  <el-dialog :title="showStoreName" :visible.sync="showStoreDetail" width="70%">
+    <el-table
+      :data="showStoreList"
+      style="width: 100%">
+      <el-table-column
+        prop="id"
+        label="编号"
+        width="100"
+        align="center">
+      </el-table-column>
+      <el-table-column
+        prop="owner_name"
+        label="货主名称"
+        width="150"
+        align="center">
+      </el-table-column>
+      <el-table-column
+        prop="name"
+        label="货物名称"
+        width="150"
+        align="center">
+      </el-table-column>
+      <el-table-column
+        prop="type"
+        label="货物类型"
+        width="150"
+        :formatter="onFormatterCargoType"
+        align="center">
+      </el-table-column>
+      <el-table-column
+        prop="num"
+        label="数量">
+      </el-table-column>
+      <el-table-column
+        prop="time"
+        label="创建时间"
+        width="140"
+        align="center">
+      </el-table-column>
+    </el-table>
+  </el-dialog>
+
+  <!-- 新增 -->
+  <el-dialog :visible.sync="showAddStoreForm">
+    <el-form ref="addStoreForm" :model="addStoreInfo" label-width="110px" label-position="left">
+      <el-form-item label="名称" prop="name">
+        <el-input v-model="addStoreInfo.name"/>
+      </el-form-item>
+      <el-form-item label="类型" prop="type">
+        <el-radio v-model="addStoreInfo.type" v-for="item in storeTypeList" :label="item.id">{{ item.name }}</el-radio>
+      </el-form-item>
+      <el-form-item label="容积" prop="num">
+        <el-input v-model="addStoreInfo.capacity"/>
+      </el-form-item>
+      <el-form-item label="容积单位" prop="unit">
+        <el-input v-model="addStoreInfo.unit"/>
+      </el-form-item>
+    </el-form>
+    <div slot="footer" class="dialog-footer">
+      <el-button type="primary" @click="onSubmitAdd">确认添加</el-button>
+    </div>
+  </el-dialog>
+</div>
+{% endverbatim %}
+<script>
+  new Vue({
+    el: '#appownerstore',
+    data() {
+      return {
+        list: [],
+        // 字典
+        cargoTypeList: [
+          { id: 1, name: '干货' },
+          { id: 2, name: '湿货' },
+          { id: 3, name: '冷货' }
+        ],
+        storeTypeList: [
+          { id: 1, name: '干货仓库' },
+          { id: 2, name: '湿货仓库' },
+          { id: 3, name: '冷货仓库' }
+        ],
+        // 添加
+        showAddStoreForm: false,
+        addStoreInfo: {
+          type: 1,
+          name: '',
+          capacity: '',
+          unit: ''
+        },
+        storeRules: {
+          type: [{ required: true, message: '请选择货物类型', trigger: 'change' }],
+          name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
+          capacity: [{ required: true, message: '请输入容积', trigger: 'blur' }],
+          unit: [{ required: true, message: '请输入容积单位', trigger: 'blur' }]
+        },
+        userInfo: {
+          user_id: ''
+        },
+        // 查看详情
+        showStoreName: '',
+        showStoreDetail: false,
+        showStoreList: []
+      }
+    },
+    mounted() {
+      let userInfo = window.localStorage.getItem("store_management_userInfo")
+      if (userInfo) {
+        userInfo = JSON.parse(userInfo)
+        this.userInfo.user_id = userInfo.id
+      }
+      this.getStoreList()
+    },
+    methods: {
+      // 获取列表
+      getStoreList() {
+        axios.post(ToDJ('storeList'), new URLSearchParams()).then(res => {
+          if (res.data.code === 0) {
+            const list = res.data.data
+            for (const item of list) {
+              item.capacity = item.capacity + item.unit
+            }
+            this.list = list 
+          } else {
+            this.NotifyFail(res.data.data)
+          }
+        })
+      },
+      // 仓库类型格式化
+      onFormatterStoreType(row, column, callValue, index) {
+        for (const item of this.storeTypeList) {
+          if (item.id === row.type) {
+            return item.name
+          }
+        }
+        return ''
+      },
+      // 订单状态格式化
+      onFormatterCargoType(row, column, callValue, index) {
+        for (const item of this.cargoTypeList) {
+          if (item.id === row.type) {
+            return item.name
+          }
+        }
+        return ''
+      },
+      // 提交添加
+      onSubmitAdd() {
+        this.$refs.addStoreForm.validate((valid) => {
+          if (valid) {
+            // 新添加
+            axios.post(ToDJ('storeAdd'), new URLSearchParams(this.addStoreInfo)).then(res => {
+              if (res.data.code === 0) {
+                this.NotifySuc("添加成功")
+                this.showAddStoreForm = false
+                this.getStoreList()
+              } else {
+                this.NotifyFail(res.data.data)
+              }
+            })
+          }
+        })
+      },
+      // 显示仓库详情
+      onShowStoreDetail(row) {
+        const { id, name } = row
+        this.showStoreName = name
+        axios.post(ToDJ('cargoList'), new URLSearchParams({ store_id: id })).then(res => {
+          if (res.data.code === 0) {
+            const list = res.data.data
+            for (const item of list) {
+              item.time = this.formateTime(item.time)
+            }
+            this.showStoreList = list 
+            this.showStoreDetail = true
+          } else {
+            this.NotifyFail(res.data.data)
+          }
+        })
+      },
+      // 成功提示
+      NotifySuc(str) {
+				this.$notify.success({
+					title: str,
+					showClose: false
+				});
+			},
+      // 错误提示
+			NotifyFail(str) {
+				this.$notify.error({
+					title: str,
+					showClose: false
+				});
+			},
+      // 格式化时间
+      formateTime(oriDate) {
+        if (!oriDate) {
+          return ''
+        }
+        const formateDate = new Date(oriDate)
+        const year =  formateDate.getFullYear()
+        const month =  formateDate.getMonth() + 1
+        const day = formateDate.getDate()
+        let h = formateDate.getHours()
+        let m = formateDate.getMinutes()
+        let s = formateDate.getSeconds()
+        h = h >= 10 ? h : `0${h}`
+        m = m >= 10 ? m : `0${m}`
+        s = s >= 10 ? s : `0${s}`
+        return `${year}-${month}-${day} ${h}:${m}`
+      }
+    }
+  })
+</script>
+{% endblock %}

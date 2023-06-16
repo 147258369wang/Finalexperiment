@@ -1,0 +1,123 @@
+{%extends "user_owner.html" %}
+ <!-- 导航标记 -->
+{% block out_store %}active{% endblock %}
+<!-- 内容区 -->
+{% block mainbody %}
+
+{% verbatim %}
+<div id="appownerout_store" class="container">
+  <div class="top-panel">
+    <div class="panel-header">
+      <div class="panel-title">出库记录</div>
+    </div>
+  </div>
+  <div class="table-wrapper">
+    <el-table
+      :data="list"
+      style="width: 100%">
+      <el-table-column
+        prop="id"
+        label="编号"
+        width="100"
+        align="center">
+      </el-table-column>
+      <el-table-column
+        prop="user_name"
+        label="顾客"
+        width="150"
+        align="center">
+      </el-table-column>
+      <el-table-column
+        prop="cargo_name"
+        label="货物名称"
+        width="150"
+        align="center">
+      </el-table-column>
+      <el-table-column
+        prop="store_name"
+        label="仓库名称"
+        width="150"
+        align="center">
+      </el-table-column>
+      <el-table-column
+        prop="num"
+        label="大小/数量">
+      </el-table-column>
+      <el-table-column
+        prop="time"
+        label="出库时间"
+        width="140"
+        align="center">
+      </el-table-column>
+    </el-table>
+  </div>
+</div>
+{% endverbatim %}
+<script>
+  new Vue({
+    el: '#appownerout_store',
+    data() {
+      return {
+        list: [],
+        userInfo: {
+          user_id: ''
+        }
+      }
+    },
+    mounted() {
+      let userInfo = window.localStorage.getItem("store_management_userInfo")
+      if (userInfo) {
+        userInfo = JSON.parse(userInfo)
+        this.userInfo.user_id = userInfo.id
+      }
+      this.getOut_storeList()
+    },
+    methods: {
+      getOut_storeList() {
+        axios.post(ToDJ('out_storeList'), new URLSearchParams({ owner_id: this.userInfo.user_id })).then(res => {
+          if (res.data.code === 0) {
+            const list = res.data.data
+            for (const item of list) {
+              item.time = this.formateTime(item.time)
+            }
+            this.list = list 
+          } else {
+            this.NotifyFail(res.data.data)
+          }
+        })
+      },
+      // 成功提示
+      NotifySuc(str) {
+				this.$notify.success({
+					title: str,
+					showClose: false
+				});
+			},
+      // 错误提示
+			NotifyFail(str) {
+				this.$notify.error({
+					title: str,
+					showClose: false
+				});
+			},
+      // 格式化时间
+      formateTime(oriDate) {
+        if (!oriDate) {
+          return ''
+        }
+        const formateDate = new Date(oriDate)
+        const year =  formateDate.getFullYear()
+        const month =  formateDate.getMonth() + 1
+        const day = formateDate.getDate()
+        let h = formateDate.getHours()
+        let m = formateDate.getMinutes()
+        let s = formateDate.getSeconds()
+        h = h >= 10 ? h : `0${h}`
+        m = m >= 10 ? m : `0${m}`
+        s = s >= 10 ? s : `0${s}`
+        return `${year}-${month}-${day} ${h}:${m}`
+      }
+    }
+  })
+</script>
+{% endblock %}

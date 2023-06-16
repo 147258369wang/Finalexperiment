@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta http-equiv="X-UA-Compatible" content="ie=edge">
+	<title>仓库管理系统</title>
+
+    <link rel="stylesheet" href="/static/css/element.css">
+	<link rel="stylesheet" href="/static/css/index.css">
+	<link rel="stylesheet" href="/static/css/login.css">
+	<script src="/static/js/vue.js"></script>
+	<script src="/static/js/axios.js"></script>
+	<script src="/static/js/helper.js"></script>
+	<script src="/static/js/element.js"></script>
+	<style></style>
+</head>
+<body>
+
+  <div id="app">
+    <!-- 登陆表单 -->
+    <div class="login-container">
+      <el-form ref="loginForm" :model="loginInfo" class="login-form" label-position="left">
+        <div class="title-container">
+          <h1 class="title">仓库管理系统</h1>
+        </div>
+
+        <!-- 切换面板 -->
+        <el-form-item>
+          <el-input  v-model="loginInfo.account" placeholder="账户"/>
+        </el-form-item>
+        <el-form-item>
+          <el-input ref="pwd" v-model="loginInfo.password" placeholder="密码" type="password"/>
+        </el-form-item>
+        <el-form-item>
+          <el-radio-group v-model="registerInfo.type">
+            <el-radio :label="2">供货商</el-radio>
+            <el-radio :label="3">顾客</el-radio>
+            <el-radio :label="1">管理员</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <div class="login-check">
+          <el-checkbox v-model="remeberLoginStatus">记住密码</el-checkbox>
+          <el-button v-if="loginInfo.login_type!='admin'" type="text" @click="showRegisterForm = true">用户注册</el-button>
+        </div>
+        <el-form-item >
+          <el-button style="width: 100%;" type="primary" @click="onLogin()">登录</el-button>
+        </el-form-item>
+      </el-form>
+    </div>
+    <!-- 注册弹窗 -->
+    <el-dialog title="注册" :visible.sync="showRegisterForm">
+      <el-form ref="registerForm" :model="registerInfo" :rules="registerRules" label-width="80px" label-position="left">
+        <el-form-item label="账户" prop="account">
+          <el-input v-model="registerInfo.account"/>
+        </el-form-item>
+        <el-form-item label="姓名" prop="name">
+          <el-input v-model="registerInfo.name"/>
+        </el-form-item>
+        <el-form-item label="密码" prop="password">
+          <el-row>
+            <el-col :span="16"><el-input v-model="registerInfo.password" :type="showPassword"/></el-col>
+              <el-col :span="6"><el-button size="mini" round icon="el-icon-view" @click="choangePassShow"></el-button>></el-col>
+          </el-row>
+        </el-form-item>
+        <el-form-item label="电话" prop="tel">
+          <el-input v-model="registerInfo.tel"/>
+        </el-form-item>
+      </el-form>
+      <div slot="footer" class="dialog-footer">
+        <el-button @click="showRegisterForm = false">取 消</el-button>
+        <el-button type="primary" @click="onRegisterUser">确 定</el-button>
+      </div>
+    </el-dialog>
+  </div>
+</body>
+<!-- 脚本 -->
+<script>
+  new Vue({
+    el: '#app',
+    data() {
+      return {
+        showPassword: 'password',
+        loginInfo: {
+          account: '',
+          password: ''
+        },
+        // 自动登录
+        remeberLoginStatus: true,
+        // 注册
+        showRegisterForm: false,
+        registerInfo: {
+          account: '',
+          name: '',
+          password: '',
+          tel: '',
+          type: 2
+        },
+        registerRules: {
+          account: [{ required: true, message: '请输入账户', trigger: 'blur' }],
+          name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
+          password: [{ required: true, message: '请输入密码', trigger: 'blur' }],
+          tel: [{ required: true, message: '电话号格式有误', min: 11, max: 11, trigger: 'blur' }]
+        }
+      }
+    },
+    mounted() {
+      this.remeberLoginStatus = window.localStorage.getItem("store_management_remeberLoginStatus") === 'true'
+      if (this.remeberLoginStatus) {
+        const loginInfo = JSON.parse(window.localStorage.getItem("store_management_loginInfo"))
+        if (loginInfo) {
+          this.loginInfo = loginInfo
+        }
+      }
+    },
+    methods: {
+      // 登陆
+      onLogin() {
+        const { account, password } = this.loginInfo
+        if (!account || !password) {
+          this.NotifyFail('请输入账户、密码')
+          return
+        }
+        // 用户登陆
+        axios.post(ToDJ('userLogin'), new URLSearchParams(this.loginInfo)).then(res => {
+          if (res.data.code === 0) {
+            this.NotifySuc("登陆成功")
+            const user = res.data.data
+            // 记住密码
+            if (this.remeberLoginStatus) {
+              window.localStorage.setItem("store_management_loginInfo", JSON.stringify(this.loginInfo))
+            }
+						window.localStorage.setItem("store_management_remeberLoginStatus", this.remeberLoginStatus)
+						window.localStorage.setItem("store_management_userInfo", JSON.stringify(res.data.data))
+            if (user.type === 1) {
+              window.location.href = '/admin'
+            } else if (user.type === 2) {
+              window.location.href = '/user_owner'
+            } else if (user.type === 3) {
+              window.location.href = '/user_buyer'
+            }
+          } else {
+            this.NotifyFail(res.data.data)
+          }
+        })
+      },
+      // 用户注册
+      onRegisterUser() {
+        const { address1, address2, address3 } = this.registerInfo
+        this.registerInfo.address = `${address1}${address2}${address3}`
+        this.$refs.registerForm.validate((valid) => {
+          if (valid) {
+            const { name, address } = this.registerInfo
+            let nameArr = name.split('')
+            for (const item of nameArr) {
+              if (!item.match(/[\u4e00-\u9fa5]/g)) {
+                this.NotifyFail('姓名必须为全中文')
+                return
+              }
+            }
+
+            axios.post(ToDJ('userRegister'), new URLSearchParams(this.registerInfo)).then(res => {
+              if (res.data.code === 0) {
+                this.NotifySuc("注册成功")
+                this.showRegisterForm = false
+              } else {
+                this.NotifyFail(res.data.data)
+              }
+            })
+          }
+        })
+      },
+      choangePassShow() {
+        if (this.showPassword === 'password') {
+          this.showPassword = 'text'
+        } else {
+          this.showPassword = 'password'
+        }
+      },
+      // 成功提示
+      NotifySuc(str) {
+				this.$notify.success({
+					title: str,
+					showClose: false
+				});
+			},
+      // 错误提示
+			NotifyFail(str) {
+				this.$notify.error({
+					title: str,
+					showClose: false
+				});
+			}
+    }
+  })
+</script>

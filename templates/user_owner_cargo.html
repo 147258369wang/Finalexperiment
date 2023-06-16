@@ -1,0 +1,299 @@
+{%extends "user_owner.html" %}
+ <!-- 导航标记 -->
+{% block cargo %}active{% endblock %}
+<!-- 内容区 -->
+{% block mainbody %}
+
+{% verbatim %}
+<div id="appownercargo" class="container">
+  <div class="top-panel">
+    <div class="panel-header">
+      <div class="panel-title">我的货物</div>
+    </div>
+  </div>
+  <div class="table-wrapper">
+    <el-table
+      :data="list"
+      style="width: 100%">
+      <el-table-column
+        prop="id"
+        label="编号"
+        width="100"
+        align="center">
+      </el-table-column>
+      <el-table-column
+        prop="name"
+        label="货物名称"
+        width="150"
+        align="center">
+      </el-table-column>
+      <el-table-column
+        prop="type"
+        label="货物类型"
+        width="150"
+        :formatter="onFormatterCargoType"
+        align="center">
+      </el-table-column>
+      <el-table-column
+        prop="num"
+        label="数量">
+      </el-table-column>
+      <el-table-column
+        prop="store_name"
+        label="仓库名称">
+      </el-table-column>
+      <el-table-column
+        prop="time"
+        label="创建时间"
+        width="140"
+        align="center">
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="80"
+        align="right">
+        <template slot-scope="{ row }">
+          <el-button type="text" @click="onAddCargoNum(row)">添加数量</el-button>
+        </template>
+      </el-table-column>
+    </el-table>
+  </div>
+  <div class="filter-container">
+    <div class="filter-item">
+      <el-button @click="showAddCargoForm = true">添加新货物</el-button>
+    </div>
+  </div>
+
+  <!-- 新增 -->
+  <el-dialog :visible.sync="showAddCargoForm">
+    <el-form ref="addCargoForm" :rules="cargoRules" :model="addCargoInfo" label-width="110px" label-position="left">
+      <el-form-item label="货物类型" prop="type">
+        <el-radio v-model="addCargoInfo.type" v-for="item in cargoTypeList" :label="item.id">{{ item.name }}</el-radio>
+      </el-form-item>
+      <el-form-item label="名称" prop="name">
+        <el-input v-model="addCargoInfo.name"/>
+      </el-form-item>
+      <el-form-item label="数量/体积" prop="num">
+        <el-input v-model="addCargoInfo.num"/>
+      </el-form-item>
+      <el-form-item label="仓库" prop="store_id">
+        <el-select v-model="addCargoInfo.store_id" placeholder="请选择仓库">
+          <el-option
+            v-for="item in storeList"
+            :disabled="item.type != addCargoInfo.type"
+            :key="item.id"
+            :label="item.name"
+            :value="item.id">
+            <span style="float: left">{{ item.name }}</span>
+            <span style="float: right; color: #8492a6; font-size: 13px">{{ item.capacity }}</span>
+          </el-option>
+        </el-select>
+      </el-form-item>
+    </el-form>
+    <div slot="footer" class="dialog-footer">
+      <el-button type="primary" @click="onSubmitAdd">确认存放</el-button>
+    </div>
+  </el-dialog>
+
+  <!-- 追加数量 -->
+  <el-dialog :visible.sync="showAddCargoNumForm">
+    <el-form ref="addCargoNumForm" :rules="cargoAddRules" :model="addCargoNumInfo" label-width="110px" label-position="left">
+      <el-form-item label="名称" prop="name">
+        <el-input disabled v-model="addCargoNumInfo.name"/>
+      </el-form-item>
+      <el-form-item label="数量/体积" prop="num">
+        <el-input v-model="addCargoNumInfo.num"/>
+      </el-form-item>
+      <el-form-item label="仓库" prop="store_id">
+        <el-select disabled v-model="addCargoNumInfo.store_id" placeholder="请选择仓库">
+          <el-option
+            v-for="item in storeList"
+            :disabled="item.type != addCargoInfo.type"
+            :key="item.id"
+            :label="item.name"
+            :value="item.id">
+            <span style="float: left">{{ item.name }}</span>
+            <span style="float: right; color: #8492a6; font-size: 13px">{{ item.capacity }}</span>
+          </el-option>
+        </el-select>
+      </el-form-item>
+    </el-form>
+    <div slot="footer" class="dialog-footer">
+      <el-button type="primary" @click="onSubmitAddNum">确认添加</el-button>
+    </div>
+  </el-dialog>
+</div>
+{% endverbatim %}
+<script>
+  new Vue({
+    el: '#appownercargo',
+    data() {
+      return {
+        list: [],
+        // 字典
+        cargoTypeList: [
+          { id: 1, name: '干货' },
+          { id: 2, name: '湿货' },
+          { id: 3, name: '冷货' }
+        ],
+        // 添加
+        showAddCargoForm: false,
+        addCargoInfo: {
+          type: 1,
+          name: '',
+          num: '',
+          owner_id: '',
+          store_id: ''
+        },
+        cargoRules: {
+          type: [{ required: true, message: '请选择货物类型', trigger: 'change' }],
+          name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
+          num: [{ required: true, message: '请输入数量', trigger: 'blur' }],
+          store_id: [{ required: true, message: '请选择仓库', trigger: 'blur' }]
+        },
+        userInfo: {
+          user_id: ''
+        },
+        // 仓库列表
+        storeList: [],
+        // 追加数量
+        showAddCargoNumForm: false,
+        addCargoNumInfo: {
+          id: '',
+          name: '',
+          store_id: '',
+          num: 0
+        },
+        cargoAddRules: {
+          name: [{ required: true, message: '请输入名称', trigger: 'blur' }],
+          num: [{ required: true, message: '请输入数量', trigger: 'blur' }],
+          store_id: [{ required: true, message: '请选择仓库', trigger: 'blur' }]
+        }
+      }
+    },
+    mounted() {
+      let userInfo = window.localStorage.getItem("store_management_userInfo")
+      if (userInfo) {
+        userInfo = JSON.parse(userInfo)
+        this.userInfo.user_id = userInfo.id
+        this.addCargoInfo.owner_id = userInfo.id
+      }
+      this.getCargoList()
+      this.getStoreList()
+    },
+    methods: {
+      getCargoList() {
+        axios.post(ToDJ('cargoList'), new URLSearchParams({ owner_id: this.userInfo.user_id })).then(res => {
+          if (res.data.code === 0) {
+            const list = res.data.data
+            for (const item of list) {
+              item.time = this.formateTime(item.time)
+            }
+            this.list = list 
+          } else {
+            this.NotifyFail(res.data.data)
+          }
+        })
+      },
+      // 获取仓库列表
+      getStoreList() {
+        axios.post(ToDJ('storeList'), new URLSearchParams()).then(res => {
+          if (res.data.code === 0) {
+            const list = res.data.data
+            for (const item of list) {
+              item.capacity = item.capacity - item.exist_amount + item.unit
+            }
+            this.storeList = list 
+          } else {
+            this.NotifyFail(res.data.data)
+          }
+        })
+      },
+      // 订单状态格式化
+      onFormatterCargoType(row, column, callValue, index) {
+        for (const item of this.cargoTypeList) {
+          if (item.id === row.type) {
+            return item.name
+          }
+        }
+        return ''
+      },
+      // 提交添加
+      onSubmitAdd() {
+        this.$refs.addCargoForm.validate((valid) => {
+          if (valid) {
+            // 新添加
+            axios.post(ToDJ('cargoAdd'), new URLSearchParams(this.addCargoInfo)).then(res => {
+              if (res.data.code === 0) {
+                this.NotifySuc("添加成功")
+                this.showAddCargoForm = false
+                this.getCargoList()
+                this.getStoreList()
+              } else {
+                this.NotifyFail(res.data.data)
+              }
+            })
+          }
+        })
+      },
+      // 追加数量
+      onAddCargoNum(row) {
+        const { id, name, store_id } = row
+        this.addCargoNumInfo = {
+          id, name, store_id, num: 0
+        }
+        this.showAddCargoNumForm = true
+      },
+      // 提交追加
+      onSubmitAddNum() {
+        this.$refs.addCargoNumForm.validate((valid) => {
+          if (valid) {
+            // 新添加
+            axios.post(ToDJ('cargoNumAdd'), new URLSearchParams(this.addCargoNumInfo)).then(res => {
+              if (res.data.code === 0) {
+                this.NotifySuc("添加成功")
+                this.showAddCargoNumForm = false
+                this.getCargoList()
+                this.getStoreList()
+              } else {
+                this.NotifyFail(res.data.data)
+              }
+            })
+          }
+        })
+      },
+      // 成功提示
+      NotifySuc(str) {
+				this.$notify.success({
+					title: str,
+					showClose: false
+				});
+			},
+      // 错误提示
+			NotifyFail(str) {
+				this.$notify.error({
+					title: str,
+					showClose: false
+				});
+			},
+      // 格式化时间
+      formateTime(oriDate) {
+        if (!oriDate) {
+          return ''
+        }
+        const formateDate = new Date(oriDate)
+        const year =  formateDate.getFullYear()
+        const month =  formateDate.getMonth() + 1
+        const day = formateDate.getDate()
+        let h = formateDate.getHours()
+        let m = formateDate.getMinutes()
+        let s = formateDate.getSeconds()
+        h = h >= 10 ? h : `0${h}`
+        m = m >= 10 ? m : `0${m}`
+        s = s >= 10 ? s : `0${s}`
+        return `${year}-${month}-${day} ${h}:${m}`
+      }
+    }
+  })
+</script>
+{% endblock %}

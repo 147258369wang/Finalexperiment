@@ -1,0 +1,102 @@
+{%extends "admin.html" %}
+ <!-- 导航标记 -->
+{% block user %}active{% endblock %}
+<!-- 内容区 -->
+{% block mainbody %}
+
+{% verbatim %}
+<div id="app4" class="container">
+  <div class="top-panel">
+    <div class="panel-header">
+      <div class="panel-title">用户列表</div>
+    </div>
+    <!-- <div class="add-wrapper">
+      <el-button type="text" icon="el-icon-plus" style="color: #999; width: 100%;" @click="onAddUser">新建</el-button>
+    </div> -->
+  </div>
+
+  <div class="table-wrapper">
+    <el-table
+      :data="list"
+      border
+      style="width: 100%">
+      <el-table-column
+        prop="id"
+        label="用户编号">
+      </el-table-column>
+      <el-table-column
+        prop="name"
+        label="名称">
+      </el-table-column>
+      <el-table-column
+        prop="type"
+        label="账户类型"
+        :formatter="onFormatterUserType">
+      </el-table-column>
+      <el-table-column
+        prop="account"
+        label="账户">
+      </el-table-column>
+      <el-table-column
+        prop="tel"
+        label="联系方式">
+      </el-table-column>
+    </el-table>
+  </div>
+</div>
+{% endverbatim %}
+<script>
+  new Vue({
+    el: '#app4',
+    data() {
+      return {
+        list: [],
+        userTypeList: [
+          { id: 1, name: '仓库管理员' },
+          { id: 2, name: '供应商' },
+          { id: 3, name: '顾客' }
+        ]
+      }
+    },
+    mounted() {
+      this.getUserList()
+    },
+    methods: {
+      getUserList() {
+        // 获取列表
+        axios.post(ToDJ('userList'), new URLSearchParams(this.queryInfo)).then(res => {
+          if (res.data.code === 0) {
+            const list = res.data.data
+            this.list = list 
+          } else {
+            this.NotifyFail(res.data.data)
+          }
+        })
+      },
+      // 性别格式化
+      onFormatterUserType(row, column, callValue, index) {
+        for (const item of this.userTypeList) {
+          if (item.id === row.type) {
+            return item.name
+          }
+        }
+        return ''
+      },
+      // 成功提示
+      NotifySuc(str) {
+				this.$notify.success({
+					title: str,
+					showClose: false
+				});
+			},
+      // 错误提示
+			NotifyFail(str) {
+				this.$notify.error({
+					title: str,
+					showClose: false
+				});
+			}
+    }
+  })
+</script>
+{% endblock %}
